@@ -11,23 +11,32 @@ import (
 )
 
 var (
-	producerService *producer.ProducerService
-	consumerService *consumer.ConsumerService
+	syncProducerService  *producer.SyncProducerService
+	asyncProducerService *producer.AsyncProducerService
+	consumerService      *consumer.ConsumerService
 )
 
 func main() {
 	// 初始化生产者服务（使用默认配置）
 	var err error
-	producerService, err = producer.DefaultProducerService()
+	syncProducerService, err = producer.NewSyncProducerService()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer func(producerService *producer.ProducerService) {
-		err := producerService.Close()
+	asyncProducerService, err = producer.NewAsyncProducerService()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func(sps *producer.SyncProducerService, aps *producer.AsyncProducerService) {
+		err := sps.Close()
 		if err != nil {
-
+			log.Fatal(err)
 		}
-	}(producerService)
+		err = aps.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(syncProducerService, asyncProducerService)
 
 	// 初始化消费者服务（使用默认配置）
 	consumerService, err = consumer.DefaultConsumerService()
@@ -41,6 +50,11 @@ func main() {
 		}
 	}(consumerService)
 
+	err = consumerService.SwitchMode(consumer.ModeStandalone)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// 启动消费者服务
 	if err := consumerService.Start(context.Background()); err != nil {
 		log.Fatal(err)
@@ -50,7 +64,8 @@ func main() {
 	r := gin.Default()
 
 	// 注册路由
-	r.GET("/send", handleSendMessage)
+	r.GET("/sync", handleSyncSendMessage)
+	r.GET("/async", handleAsyncSendMessage)
 
 	// 启动服务器
 	log.Println("服务器启动在 :8081 端口")
@@ -59,8 +74,8 @@ func main() {
 	}
 }
 
-// handleSendMessage 处理发送消息的请求
-func handleSendMessage(c *gin.Context) {
+// handleSyncSendMessage 同步处理发送消息的请求
+func handleSyncSendMessage(c *gin.Context) {
 	// 获取消息参数
 	message := c.Query("msg")
 	if message == "" {
@@ -71,13 +86,36 @@ func handleSendMessage(c *gin.Context) {
 	}
 
 	// 发送消息到 Kafka
-	err := producerService.SendMessage("kafka-example-sync", message)
+	err := syncProducerService.SendMessage(message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "发送消息失败: " + err.Error(),
 		})
 		return
 	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"message": "消息发送成功",
+		"data": gin.H{
+			"content": message,
+		},
+	})
+}
+
+// handleAsyncSendMessage 异步处理发送消息的请求
+func handleAsyncSendMessage(c *gin.Context) {
+	// 获取消息参数
+	message := c.Query("msg")
+	if message == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "消息不能为空",
+		})
+		return
+	}
+
+	// 发送消息到 Kafka
+	asyncProducerService.SendMessage(message)
 
 	// 返回成功响应
 	c.JSON(http.StatusOK, gin.H{

@@ -2,10 +2,20 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/IBM/sarama"
 )
+
+// 消费模式
+const (
+	ModeStandalone = "standalone" // 独立模式
+	ModeGroup      = "group"      // 消费者组模式
+)
+
+// 日志前缀
+const logPrefixService = "消费者服务"
 
 // ConsumerService 表示Kafka消费者服务
 type ConsumerService struct {
@@ -13,6 +23,7 @@ type ConsumerService struct {
 	topics  []string
 	groupID string
 	brokers []string
+	mode    string // 消费模式
 }
 
 // DefaultConsumerService 创建一个默认配置的消费者服务
@@ -94,4 +105,15 @@ func (h *ConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession,
 // Stop 停止消费者服务
 func (s *ConsumerService) Stop() error {
 	return s.group.Close()
+}
+
+// SwitchMode 切换消费模式
+func (s *ConsumerService) SwitchMode(mode string) error {
+	if mode != ModeStandalone && mode != ModeGroup {
+		return fmt.Errorf("不支持的消费模式: %s", mode)
+	}
+
+	s.mode = mode
+	log.Printf("%s切换到%s模式", logPrefixService, mode)
+	return nil
 }
