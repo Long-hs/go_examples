@@ -2,6 +2,7 @@ package producer
 
 import (
 	"errors"
+	"kafka-example/common"
 	"log"
 	"time"
 
@@ -20,7 +21,7 @@ type SyncProducerService struct {
 //   - *SyncProducerService: 同步生产者服务实例
 //   - error: 创建失败时返回错误
 func NewSyncProducerService() (*SyncProducerService, error) {
-	log.Printf("%s正在创建同步生产者: brokers=%v", logPrefixService, []string{broker})
+	log.Printf("%s正在创建同步生产者: brokers=%v", common.LogPrefixService, []string{common.Broker})
 
 	// 配置生产者参数
 	config := sarama.NewConfig()
@@ -31,16 +32,16 @@ func NewSyncProducerService() (*SyncProducerService, error) {
 	config.Producer.Retry.Max = 5                    // 最大重试次数
 
 	// 创建同步生产者
-	producer, err := sarama.NewSyncProducer([]string{broker}, config)
+	producer, err := sarama.NewSyncProducer([]string{common.Broker}, config)
 	if err != nil {
-		log.Printf("%s创建同步生产者失败: %v", logPrefixService, err)
+		log.Printf("%s创建同步生产者失败: %v", common.LogPrefixService, err)
 		return nil, err
 	}
 
-	log.Printf("%s同步生产者创建成功", logPrefixService)
+	log.Printf("%s同步生产者创建成功", common.LogPrefixService)
 	return &SyncProducerService{
 		producer: producer,
-		brokers:  []string{broker},
+		brokers:  []string{common.Broker},
 	}, nil
 }
 
@@ -53,21 +54,21 @@ func NewSyncProducerService() (*SyncProducerService, error) {
 func (s *SyncProducerService) SendMessage(message string) error {
 	// 创建生产者消息
 	msg := &sarama.ProducerMessage{
-		Topic: syncTopic,
+		Topic: common.SyncTopic,
 		Value: sarama.StringEncoder(message),
 	}
 
-	log.Printf("%s开始发送消息: topic=%s, message=%s", logPrefixSync, syncTopic, message)
+	log.Printf("%s开始发送消息: topic=%s, message=%s", common.LogPrefixSync, common.SyncTopic, message)
 
 	// 发送消息并等待结果
 	partition, offset, err := s.producer.SendMessage(msg)
 	if err != nil {
-		log.Printf("%s消息发送失败，准备重试: topic=%s, error=%v", logPrefixSync, syncTopic, err)
+		log.Printf("%s消息发送失败，准备重试: topic=%s, error=%v", common.LogPrefixSync, common.SyncTopic, err)
 		return s.retrySend(msg, 5) // 失败时进行重试
 	}
 
 	log.Printf("%s消息发送成功: topic=%s, partition=%d, offset=%d",
-		logPrefixSync, syncTopic, partition, offset)
+		common.LogPrefixSync, common.SyncTopic, partition, offset)
 	return nil
 }
 
@@ -84,25 +85,25 @@ func (s *SyncProducerService) retrySend(msg *sarama.ProducerMessage, maxRetries 
 		if i == maxRetries {
 			// 重试失败或达到最大重试次数
 			log.Printf("%s重试终止: topic=%s, 重试次数=%d, 错误=%v",
-				logPrefixSync, msg.Topic, i+1, errors.New("消息重发失败，超过重试次数上限"))
+				common.LogPrefixSync, msg.Topic, i+1, errors.New("消息重发失败，超过重试次数上限"))
 			return errors.New("消息重发失败，超过重试次数上限")
 		}
 
-		log.Printf("%s开始第%d次重试: topic=%s", logPrefixSync, i+1, msg.Topic)
+		log.Printf("%s开始第%d次重试: topic=%s", common.LogPrefixSync, i+1, msg.Topic)
 
 		// 尝试发送消息
 		partition, offset, err := s.producer.SendMessage(msg)
 		if err == nil {
 			log.Printf("%s重试发送成功: topic=%s, 重试次数=%d, partition=%d, offset=%d",
-				logPrefixSync, msg.Topic, i+1, partition, offset)
+				common.LogPrefixSync, msg.Topic, i+1, partition, offset)
 			return nil
 		}
 
 		// 如果错误可重试，则等待后继续
-		if isRetryableError(err) {
+		if common.IsRetryableError(err) {
 			backoff := time.Duration(1<<i) * 100 * time.Millisecond // 指数退避
 			log.Printf("%s重试发送失败: topic=%s, 重试次数=%d, 等待时间=%v, 错误=%v",
-				logPrefixSync, msg.Topic, i+1, backoff, err)
+				common.LogPrefixSync, msg.Topic, i+1, backoff, err)
 			time.Sleep(backoff)
 			continue
 		}
@@ -115,9 +116,9 @@ func (s *SyncProducerService) retrySend(msg *sarama.ProducerMessage, maxRetries 
 // 返回:
 //   - error: 关闭失败时返回错误
 func (s *SyncProducerService) Close() error {
-	log.Printf("%s正在关闭同步生产者服务", logPrefixSync)
+	log.Printf("%s正在关闭同步生产者服务", common.LogPrefixSync)
 	if err := s.producer.Close(); err != nil {
-		log.Printf("%s关闭同步生产者失败: %v", logPrefixSync, err)
+		log.Printf("%s关闭同步生产者失败: %v", common.LogPrefixSync, err)
 		return err
 	}
 	return nil

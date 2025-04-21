@@ -1,6 +1,7 @@
 package producer
 
 import (
+	"kafka-example/common"
 	"testing"
 
 	"github.com/IBM/sarama"
@@ -45,10 +46,10 @@ func TestSyncProducerService_retrySend(t *testing.T) {
 	mockProducer := createMockSyncProducer(t)
 	service := &SyncProducerService{
 		producer: mockProducer,
-		brokers:  []string{broker},
+		brokers:  []string{common.Broker},
 	}
 
-	msg := mockMessage(syncTopic, "test retry message")
+	msg := mockMessage(common.SyncTopic, "test retry message")
 
 	tests := []struct {
 		name       string
@@ -93,7 +94,7 @@ func TestSyncProducerService_SendMessage(t *testing.T) {
 	mockProducer := createMockSyncProducer(t)
 	service := &SyncProducerService{
 		producer: mockProducer,
-		brokers:  []string{broker},
+		brokers:  []string{common.Broker},
 	}
 
 	tests := []struct {

@@ -3,6 +3,7 @@ package producer
 import (
 	"encoding/binary"
 	"errors"
+	"kafka-example/common"
 	"log"
 	"sync"
 
@@ -27,7 +28,7 @@ type AsyncProducerService struct {
 //   - *AsyncProducerService: 异步生产者服务实例
 //   - error: 创建失败时返回错误
 func NewAsyncProducerService() (*AsyncProducerService, error) {
-	log.Printf("%s正在创建异步生产者: brokers=%v", logPrefixService, []string{broker})
+	log.Printf("%s正在创建异步生产者: brokers=%v", common.LogPrefixService, []string{common.Broker})
 
 	// 配置生产者参数
 	config := sarama.NewConfig()
@@ -38,40 +39,40 @@ func NewAsyncProducerService() (*AsyncProducerService, error) {
 	config.Producer.Return.Errors = true             // 返回错误信息
 
 	// 创建异步生产者
-	producer, err := sarama.NewAsyncProducer([]string{broker}, config)
+	producer, err := sarama.NewAsyncProducer([]string{common.Broker}, config)
 	if err != nil {
-		log.Printf("%s创建异步生产者失败: %v", logPrefixService, err)
+		log.Printf("%s创建异步生产者失败: %v", common.LogPrefixService, err)
 		return nil, err
 	}
 
 	s := &AsyncProducerService{
 		producer: producer,
-		brokers:  []string{broker},
+		brokers:  []string{common.Broker},
 	}
 
 	// 启动错误处理协程
 	errorHandler.Do(s.errorHanding)
-	log.Printf("%s异步生产者创建成功", logPrefixService)
+	log.Printf("%s异步生产者创建成功", common.LogPrefixService)
 	return s, nil
 }
 
 // errorHanding 处理异步发送过程中的错误
 // 启动一个协程监听错误通道，对可重试的错误进行重试
 func (s *AsyncProducerService) errorHanding() {
-	log.Printf("%s启动错误处理协程", logPrefixAsync)
+	log.Printf("%s启动错误处理协程", common.LogPrefixAsync)
 	go func() {
 		// 从错误通道中读取错误
 		for result := range s.producer.Errors() {
-			if isRetryableError(result.Err) {
+			if common.IsRetryableError(result.Err) {
 				log.Printf("%s消息发送失败，准备重试: topic=%s, partition=%d, error=%v",
-					logPrefixAsync, result.Msg.Topic, result.Msg.Partition, result.Err)
+					common.LogPrefixAsync, result.Msg.Topic, result.Msg.Partition, result.Err)
 				err := s.retrySend(result.Msg, 5)
 				if err != nil {
 					log.Fatal(err)
 				}
 			} else {
 				log.Printf("%s消息发送失败(不可重试): topic=%s, partition=%d, error=%v",
-					logPrefixAsync, result.Msg.Topic, result.Msg.Partition, result.Err)
+					common.LogPrefixAsync, result.Msg.Topic, result.Msg.Partition, result.Err)
 			}
 		}
 	}()
@@ -83,10 +84,10 @@ func (s *AsyncProducerService) errorHanding() {
 func (s *AsyncProducerService) SendMessage(message string) {
 	// 创建生产者消息
 	msg := &sarama.ProducerMessage{
-		Topic: asyncTopic,
+		Topic: common.AsyncTopic,
 		Value: sarama.StringEncoder(message),
 	}
-	log.Printf("%s发送消息: topic=%s, message=%s", logPrefixAsync, asyncTopic, message)
+	log.Printf("%s发送消息: topic=%s, message=%s", common.LogPrefixAsync, common.AsyncTopic, message)
 	// 将消息发送到输入通道
 	s.producer.Input() <- msg
 }
@@ -116,7 +117,7 @@ func (s *AsyncProducerService) retrySend(msg *sarama.ProducerMessage, maxRetries
 	// 检查是否超过最大重试次数
 	if retryCount >= maxRetries {
 		log.Printf("%s消息重发失败: topic=%s, 重试次数=%d, 达到重试次数上限=%d",
-			logPrefixAsync, msg.Topic, retryCount, maxRetries)
+			common.LogPrefixAsync, msg.Topic, retryCount, maxRetries)
 		return errors.New("消息重发失败，超过重试次数上限")
 	}
 
@@ -129,7 +130,7 @@ func (s *AsyncProducerService) retrySend(msg *sarama.ProducerMessage, maxRetries
 		})
 	}
 
-	log.Printf("%s开始第%d次重试: topic=%s", logPrefixAsync, retryCount+1, msg.Topic)
+	log.Printf("%s开始第%d次重试: topic=%s", common.LogPrefixAsync, retryCount+1, msg.Topic)
 	// 将消息重新发送到输入通道
 	s.producer.Input() <- msg
 	return nil
@@ -139,9 +140,9 @@ func (s *AsyncProducerService) retrySend(msg *sarama.ProducerMessage, maxRetries
 // 返回:
 //   - error: 关闭失败时返回错误
 func (s *AsyncProducerService) Close() error {
-	log.Printf("%s正在关闭异步生产者服务", logPrefixAsync)
+	log.Printf("%s正在关闭异步生产者服务", common.LogPrefixAsync)
 	if err := s.producer.Close(); err != nil {
-		log.Printf("%s关闭异步生产者失败: %v", logPrefixAsync, err)
+		log.Printf("%s关闭异步生产者失败: %v", common.LogPrefixAsync, err)
 		return err
 	}
 	return nil

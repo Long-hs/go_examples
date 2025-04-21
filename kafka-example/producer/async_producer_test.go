@@ -2,6 +2,7 @@ package producer
 
 import (
 	"encoding/binary"
+	"kafka-example/common"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func TestAsyncProducerService_SendMessage(t *testing.T) {
 	mockProducer := createMockAsyncProducer(t)
 	service := &AsyncProducerService{
 		producer: mockProducer,
-		brokers:  []string{broker},
+		brokers:  []string{common.Broker},
 	}
 
 	// 设置预期
@@ -76,7 +77,7 @@ func TestAsyncProducerService_retrySend(t *testing.T) {
 	mockProducer := createMockAsyncProducer(t)
 	service := &AsyncProducerService{
 		producer: mockProducer,
-		brokers:  []string{broker},
+		brokers:  []string{common.Broker},
 	}
 
 	tests := []struct {
@@ -91,7 +92,7 @@ func TestAsyncProducerService_retrySend(t *testing.T) {
 			maxRetries: 5,
 			retryCount: 1,
 			setupMsg: func() *sarama.ProducerMessage {
-				return mockMessage(asyncTopic, "test retry message")
+				return mockMessage(common.AsyncTopic, "test retry message")
 			},
 			wantErr: false,
 		},
@@ -100,7 +101,7 @@ func TestAsyncProducerService_retrySend(t *testing.T) {
 			maxRetries: 5,
 			retryCount: 3,
 			setupMsg: func() *sarama.ProducerMessage {
-				msg := mockMessage(asyncTopic, "test retry message")
+				msg := mockMessage(common.AsyncTopic, "test retry message")
 				value := make([]byte, 2)
 				binary.BigEndian.PutUint16(value, 2)
 				msg.Headers = append(msg.Headers, sarama.RecordHeader{
@@ -116,7 +117,7 @@ func TestAsyncProducerService_retrySend(t *testing.T) {
 			maxRetries: 5,
 			retryCount: 6,
 			setupMsg: func() *sarama.ProducerMessage {
-				msg := mockMessage(asyncTopic, "test retry message")
+				msg := mockMessage(common.AsyncTopic, "test retry message")
 				value := make([]byte, 2)
 				binary.BigEndian.PutUint16(value, 5)
 				msg.Headers = append(msg.Headers, sarama.RecordHeader{
