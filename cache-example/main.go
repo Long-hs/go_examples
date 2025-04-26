@@ -14,7 +14,8 @@ func main() {
 	// 缓存回溯
 	r.GET("/cache1", logic.HandlerCache1)
 	r.GET("/mysql1", logic.HandlerMysql1)
-	r.GET("/cache2", logic.HandlerCache2)
+	// 双写
+	r.GET("/doubleWrite", logic.HandlerDoubleWrite)
 	r.GET("/cache3", logic.HandlerCache3)
 	r.GET("/cache4", logic.HandlerCache4)
 	r.GET("/cache5", logic.HandlerCache5)

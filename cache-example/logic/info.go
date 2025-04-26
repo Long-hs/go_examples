@@ -4,8 +4,8 @@ import (
 	"cache-example/db"
 	"cache-example/repository"
 	"context"
-	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -23,18 +23,57 @@ func HandlerCache3(c *gin.Context) {
 
 }
 
-func HandlerCache2(c *gin.Context) {
-
+func HandlerDoubleWrite(c *gin.Context) {
+	idStr := c.Query("id")
+	name := c.Query("name")
+	if idStr == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id or name"})
+		return
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
+	}
+	infoRepository := repository.NewInfoRepository()
+	info := &db.Info{
+		ID:   id,
+		Name: name,
+	}
+	//修改数据库
+	//开启事务
+	db.DB.Begin()
+	err = infoRepository.UpdateToMysql(info)
+	if err != nil {
+		//回滚事务
+		db.DB.Rollback()
+		log.Printf("Error updating to mysql: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating to mysql"})
+		return
+	}
+	//修改缓存
+	err = infoRepository.SaveToCache(info, context.Background())
+	if err != nil {
+		//回滚事务
+		db.DB.Rollback()
+		log.Printf("Error saving to cache: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving to cache"})
+		return
+	}
+	//提交事务
+	db.DB.Commit()
+	c.JSON(http.StatusOK, gin.H{"message": "Update success"})
 }
 
 func HandlerMysql1(c *gin.Context) {
 	query := c.Query("id")
 	if query == "" {
-		_, _ = c.Writer.Write([]byte("Invalid id"))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
 	}
 	id, err := strconv.ParseInt(query, 10, 64)
 	if err != nil {
-		_, _ = c.Writer.Write([]byte("Invalid id"))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
 		return
 	}
 	infoRepository := repository.NewInfoRepository()
@@ -42,22 +81,23 @@ func HandlerMysql1(c *gin.Context) {
 	ret, err := infoRepository.GetFromMysql(id)
 	if err != nil {
 		log.Printf("Error getting from mysql: %v\n", err)
-		_, _ = c.Writer.Write([]byte("Error getting from mysql"))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting from mysql"})
 		return
 	}
 	log.Printf("%v\n", ret)
-	_, _ = c.Writer.Write([]byte(fmt.Sprintf("%v", ret)))
+	c.JSON(http.StatusOK, ret)
 }
 
 func HandlerCache1(c *gin.Context) {
 	ctx := context.Background()
 	query := c.Query("id")
 	if query == "" {
-		_, _ = c.Writer.Write([]byte("Invalid id"))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
 	}
 	id, err := strconv.ParseInt(query, 10, 64)
 	if err != nil {
-		_, _ = c.Writer.Write([]byte("Invalid id"))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
 		return
 	}
 	infoRepository := repository.NewInfoRepository()
@@ -75,18 +115,17 @@ func HandlerCache1(c *gin.Context) {
 		ret, err := infoRepository.GetFromMysql(id)
 		if err != nil {
 			log.Printf("Error getting from mysql: %v\n", err)
-			_, _ = c.Writer.Write([]byte("Error getting from mysql"))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting from mysql"})
 			return
 		}
 		info = ret
 		// 保存到缓存中
 		err = infoRepository.SaveToCache(info, ctx)
 		if err != nil {
-			log.Fatalf("Error saving to cache: %v\n", err)
+			log.Printf("Error saving to cache: %v\n", err)
 		}
 	}
 
 	log.Printf("%v\n", info)
-	_, _ = c.Writer.Write([]byte(fmt.Sprintf("%v", info)))
-
+	c.JSON(http.StatusOK, info)
 }

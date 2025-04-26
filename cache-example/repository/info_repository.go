@@ -14,6 +14,7 @@ type InfoRepository interface {
 	GetFromMysql(id int64) (*db.Info, error)
 	GetFromCache(id int64, ctx context.Context) (*db.Info, error)
 	SaveToCache(info *db.Info, ctx context.Context) error
+	UpdateToMysql(info *db.Info) error
 }
 
 // infoRepository 信息仓储实现
@@ -75,5 +76,13 @@ func (r *infoRepository) SaveToCache(info *db.Info, ctx context.Context) error {
 		return fmt.Errorf("保存缓存失败: %v", err)
 	}
 
+	return nil
+}
+
+func (r *infoRepository) UpdateToMysql(info *db.Info) error {
+	if err := db.DB.Table(info.TableName()).Where("id = ?", info.ID).Updates(info).First(info).Error; err != nil {
+		log.Printf("[DB] 更新失败: %v", err)
+		return fmt.Errorf("更新失败: %v", err)
+	}
 	return nil
 }

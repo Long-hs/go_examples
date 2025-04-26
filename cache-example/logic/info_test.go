@@ -81,3 +81,38 @@ func TestHandlerMysql1(t *testing.T) {
 	url := "http://localhost:8080/mysql1?id=1"
 	runConcurrentTest(t, "Mysql1", url, 200, 5*time.Second)
 }
+
+func TestHandlerDoubleWrite(t *testing.T) {
+	//写入数据库
+	url := "http://localhost:8080/doubleWrite?id=1&name=test2"
+	client := &http.Client{}
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("请求失败: %v", err)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			t.Logf("关闭响应体失败: %v", err)
+		}
+	}(resp.Body)
+
+	statusCode := resp.StatusCode
+	if statusCode == http.StatusOK {
+		t.Logf("请求成功")
+	} else {
+		t.Fatalf("请求返回非200状态码: %d", statusCode)
+	}
+	//读取缓存
+	url = "http://localhost:8080/cache1?id=1"
+	resp, err = client.Get(url)
+	if err != nil {
+		t.Fatalf("请求失败: %v", err)
+	}
+	statusCode = resp.StatusCode
+	if statusCode == http.StatusOK {
+		t.Logf("请求成功")
+	} else {
+		t.Fatalf("请求返回非200状态码: %d", statusCode)
+	}
+}
