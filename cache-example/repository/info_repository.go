@@ -15,10 +15,22 @@ type InfoRepository interface {
 	GetFromCache(id int64, ctx context.Context) (*db.Info, error)
 	SaveToCache(info *db.Info, ctx context.Context) error
 	UpdateToMysql(info *db.Info) error
+	DeleteFromCache(id int64, ctx context.Context) error
 }
 
 // infoRepository 信息仓储实现
 type infoRepository struct{}
+
+func (r *infoRepository) DeleteFromCache(id int64, ctx context.Context) error {
+	key := fmt.Sprintf("info:%d", id)
+	// 删除缓存（设置过期时间避免大key问题）
+	if err := db.RedisDB.PExpire(ctx, key, time.Millisecond*1).Err(); err != nil {
+		log.Printf("[Cache] 设置过期时间失败: %v", err)
+		return fmt.Errorf("设置过期时间失败: %v", err)
+	}
+	log.Printf("[Cache] 设置过期时间成功: key=%s", key)
+	return nil
+}
 
 // NewInfoRepository 创建信息仓储实例
 func NewInfoRepository() InfoRepository {

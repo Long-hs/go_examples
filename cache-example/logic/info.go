@@ -19,8 +19,40 @@ func HandlerCache4(c *gin.Context) {
 
 }
 
-func HandlerCache3(c *gin.Context) {
+func HandlerRU(c *gin.Context) {
+	// 复用HandlerCache1
+	HandlerCache1(c)
+}
 
+func HandlerWD(c *gin.Context) {
+	idStr := c.Query("id")
+	name := c.Query("name")
+	if idStr == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id or name"})
+		return
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
+	}
+	infoRepository := repository.NewInfoRepository()
+	info := &db.Info{
+		ID:   id,
+		Name: name,
+	}
+	//修改数据库
+	err = infoRepository.UpdateToMysql(info)
+	if err != nil {
+		log.Printf("Error updating to mysql: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating to mysql"})
+	}
+	//删除缓存
+	err = infoRepository.DeleteFromCache(id, context.Background())
+	if err != nil {
+		log.Printf("Error deleting from cache: %v\n", err)
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Update success"})
 }
 
 func HandlerDoubleWrite(c *gin.Context) {
