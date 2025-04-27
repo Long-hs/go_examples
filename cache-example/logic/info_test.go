@@ -154,3 +154,25 @@ func TestHandlerRU(t *testing.T) {
 		t.Fatalf("请求返回非200状态码: %d", statusCode)
 	}
 }
+
+func TestHandlerDelayedDoubleDel(t *testing.T) {
+	url := "http://localhost:8080/delayedDoubleDel?id=1&name=test4"
+	client := &http.Client{}
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("请求失败: %v", err)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			t.Logf("关闭响应体失败: %v", err)
+		}
+	}(resp.Body)
+
+	statusCode := resp.StatusCode
+	if statusCode == http.StatusOK {
+		t.Logf("请求成功")
+	} else {
+		t.Fatalf("请求返回非200状态码: %d", statusCode)
+	}
+}

@@ -20,7 +20,9 @@ func main() {
 	r.GET("/readUpdate", logic.HandlerRU)
 	r.GET("/writeDelete", logic.HandlerWD)
 
-	r.GET("/cache4", logic.HandlerCache4)
+	// 延时双删
+	r.GET("/delayedDoubleDel", logic.HandlerDelayedDoubleDel)
+
 	r.GET("/cache5", logic.HandlerCache5)
 	err := r.Run(":8080")
 	if err != nil {
