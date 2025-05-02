@@ -3,12 +3,15 @@ package main
 import (
 	"cache-example/db"
 	"cache-example/logic"
+
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	db.NewMysqlDB()
 	db.NewRedisDB()
+
+	db.KafkaServer = db.NewKafkaServer([]string{"127.0.0.1:9092"}, []string{"cache_example"}, "cache_example_group")
 
 	r := gin.Default()
 	// 缓存回溯
@@ -23,7 +26,8 @@ func main() {
 	// 延时双删
 	r.GET("/delayedDoubleDel", logic.HandlerDelayedDoubleDel)
 
-	r.GET("/cache5", logic.HandlerCache5)
+	//异步更新
+	r.GET("/asyncUpdate", logic.HandlerAsyncUpdate)
 	err := r.Run(":8080")
 	if err != nil {
 		panic(err)
