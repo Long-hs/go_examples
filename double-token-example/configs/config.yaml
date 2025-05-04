@@ -1,0 +1,17 @@
+server:
+  port: "8080"
+
+mysql:
+  host: "127.0.0.1"
+  port: "3306"
+  user: "root"
+  password: "root"
+  dbname: "double_token"
+
+mongodb:
+  uri: "mongodb://localhost:27017/double_token_example"
+  dbname: "double_token_example"
+
+jwt:
+  secret: "your-secret-key"
+  expire_time: 86400  # 24小时 
