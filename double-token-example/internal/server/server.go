@@ -3,6 +3,7 @@ package server
 import (
 	"double-token-example/internal/config"
 	"double-token-example/internal/db"
+	"double-token-example/internal/kafka"
 	"double-token-example/internal/middleware"
 	"double-token-example/internal/router"
 
@@ -17,6 +18,10 @@ func init() {
 	// 初始化数据库
 	db.InitMySQL()
 	db.InitMongoDB()
+	db.InitRedisDB()
+
+	//初始化kafka
+	kafka.InitKafkaServer()
 }
 
 func NewServer() *Server {

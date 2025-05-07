@@ -4,6 +4,7 @@ import (
 	"double-token-example/internal/logic"
 	"double-token-example/internal/model"
 	"double-token-example/pkg/response"
+
 	"github.com/gin-gonic/gin"
 )
 

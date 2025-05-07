@@ -1,7 +1,6 @@
 package db
 
 import (
-	"double-token-example/internal/config"
 	"log"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -36,5 +35,5 @@ func GetMongoDB() *mongo.Client {
 
 // GetMongoDBCollection 获取MongoDB集合
 func GetMongoDBCollection(collectionName string) *mongo.Collection {
-	return mongoDB.Database(config.Cfg.MongoDB.DBName).Collection(collectionName)
+	return mongoDB.Database("double_token_example").Collection(collectionName)
 }

@@ -18,7 +18,7 @@ type Order struct {
 	CreatorID     int64      `gorm:"not null" json:"creatorID"`                                  // 创建者ID
 	GoodsID       string     `gorm:"type:varchar(48);not null" json:"goodsID"`                   // 商品ID                // 商品ID
 	PaymentNo     string     `gorm:"type:varchar(36);not null;unique" json:"paymentNo"`          // 支付流水号
-	Quantity      int8       `gorm:"type:tinyint;not null" json:"quantity"`                      // 购买数量（至少1件）
+	Quantity      int64      `gorm:"type:tinyint;not null" json:"quantity"`                      // 购买数量（至少1件）
 	Amount        float64    `gorm:"type:decimal(10,2);not null" json:"amount"`                  // 支付金额
 	PaymentMethod int8       `gorm:"type:tinyint;not null" json:"paymentMethod"`                 // 支付方式：1-支付宝，2-微信
 	Status        int8       `gorm:"type:tinyint;not null" json:"status"`                        // 支付状态：1-待支付，2-支付成功，3-支付失败
@@ -35,7 +35,7 @@ func (Order) TableName() string {
 type CreateOrderRequest struct {
 	CreatorID     int64   `json:"creatorId"`
 	GoodsID       string  `json:"goodsId"`
-	Quantity      int8    `json:"quantity"`
+	Quantity      int64   `json:"quantity"`
 	Amount        float64 `json:"amount"`
 	PaymentMethod int8    `json:"paymentMethod"`
 }
@@ -43,7 +43,7 @@ type CreateOrderRequest struct {
 type UpdateOrderRequest struct {
 	CreatorID     int64   `json:"creatorID"`
 	PaymentNo     string  `json:"paymentNo"`
-	Quantity      int8    `json:"quantity"`
+	Quantity      int64   `json:"quantity"`
 	Amount        float64 `json:"amount"`
 	PaymentMethod int8    `json:"paymentMethod"`
 	Status        int8    `json:"status"`

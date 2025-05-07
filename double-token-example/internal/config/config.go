@@ -10,6 +10,12 @@ type Config struct {
 	Server struct {
 		Port string
 	}
+	Redis struct {
+		Host     string
+		Port     string
+		Password string
+		DB       int
+	}
 	MySQL struct {
 		Host     string
 		Port     string
@@ -25,6 +31,11 @@ type Config struct {
 		Secret     string
 		ExpireTime int64
 	}
+	Kakfa struct {
+		Brokers []string
+		Topic   string
+		Group   string
+	}
 }
 
 var Cfg Config
@@ -38,6 +49,10 @@ func Init() {
 
 	// 设置默认值
 	viper.SetDefault("server.port", "8080")
+	viper.SetDefault("redis.host", "127.0.0.1")
+	viper.SetDefault("redis.port", "6379")
+	viper.SetDefault("redis.password", "")
+	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("mysql.host", "127.0.0.1")
 	viper.SetDefault("mysql.port", "8806")
 	viper.SetDefault("mysql.user", "root")
@@ -47,6 +62,9 @@ func Init() {
 	viper.SetDefault("mongodb.dbname", "double_token_example")
 	viper.SetDefault("jwt.secret", "your-secret-key")
 	viper.SetDefault("jwt.expire_time", 86400)
+
+	viper.SetDefault("kafka.brokers", []string{"127.0.0.1:9092"})
+	viper.SetDefault("kafka.group", "double_token_example_group")
 
 	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {

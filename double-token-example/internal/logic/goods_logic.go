@@ -2,26 +2,44 @@ package logic
 
 import (
 	"context"
+	"double-token-example/internal/kafka"
 	"double-token-example/internal/model"
 	"double-token-example/internal/repository"
 	"double-token-example/pkg/utils"
+	"encoding/json"
 	"errors"
+	"log"
 	"time"
+
+	"github.com/IBM/sarama"
 )
 
 type GoodsLogic struct {
 	goodsRepo *repository.GoodsRepository
+	kafka     *kafka.KafkaSever
 }
 
 func NewGoodsLogic() *GoodsLogic {
 	return &GoodsLogic{
 		goodsRepo: repository.NewGoodsRepository(),
+		kafka:     kafka.GetKafkaServer(),
 	}
 }
 
 // CreateGoods 创建商品
 func (l *GoodsLogic) CreateGoods(ctx context.Context, req *model.CreateGoodsRequest) error {
 	uuid := utils.GenerateUUID()
+	layout := "2006-01-02 15:04:05"
+	startTime, err := time.Parse(layout, req.StartTime)
+	if err != nil {
+		log.Fatalln(err)
+		return err
+	}
+	endTime, err := time.Parse(layout, req.EndTime)
+	if err != nil {
+		log.Fatalln(err)
+		return err
+	}
 	goods := &model.Goods{
 		ID:          uuid,
 		Name:        req.Name,
@@ -31,11 +49,32 @@ func (l *GoodsLogic) CreateGoods(ctx context.Context, req *model.CreateGoodsRequ
 		Status:      1,
 		CreatorID:   req.CreatorID,
 		UpdaterID:   req.CreatorID,
+		StartTime:   startTime,
+		EndTime:     endTime,
 		CreateTime:  time.Now(),
 		UpdateTime:  time.Now(),
 	}
-
-	return l.goodsRepo.Create(ctx, goods)
+	marshal, err := json.Marshal(goods)
+	if err != nil {
+		log.Fatalln(err)
+		return err
+	}
+	msg := &sarama.ProducerMessage{
+		Topic: "goods_topic",
+		Value: sarama.StringEncoder(marshal),
+	}
+	partition, offset, err := l.kafka.SyncProducer.SendMessage(msg)
+	if err != nil {
+		log.Fatalln(err)
+		return err
+	}
+	log.Printf("Message is stored in partition %d at offset %d\n", partition, offset)
+	err = l.goodsRepo.CreateSeckillGoodsCache(ctx, goods)
+	if err != nil {
+		log.Fatalln(err)
+		return err
+	}
+	return nil
 }
 
 // GetGoodsList 获取商品列表

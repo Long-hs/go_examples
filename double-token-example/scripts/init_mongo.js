@@ -1,43 +1,38 @@
+// 创建数据库
+db = db.getSiblingDB('double_token_example');
+
 // 创建商品集合
-db.createCollection("goods", {
+db.createCollection('goods', {
     validator: {
         $jsonSchema: {
             bsonType: "object",
-            required: ["name", "price", "stock", "status"],
+            required: ["name", "price", "stock", "start_time", "end_time"],
             properties: {
                 name: {
                     bsonType: "string",
                     description: "商品名称"
-                },
-                description: {
-                    bsonType: "string",
-                    description: "商品描述"
                 },
                 price: {
                     bsonType: "double",
                     description: "商品价格"
                 },
                 stock: {
-                    bsonType: "long",
+                    bsonType: "int",
                     description: "商品库存"
                 },
-                image: {
-                    bsonType: "string",
-                    description: "商品图片"
+                start_time: {
+                    bsonType: "date",
+                    description: "秒杀开始时间"
                 },
-                status: {
-                    bsonType: "int",
-                    description: "商品状态：1-上架，0-下架"
+                end_time: {
+                    bsonType: "date",
+                    description: "秒杀结束时间"
                 },
-                version: {
-                    bsonType: "long",
-                    description: "版本号（用于乐观锁）"
-                },
-                create_time: {
+                created_at: {
                     bsonType: "date",
                     description: "创建时间"
                 },
-                update_time: {
+                updated_at: {
                     bsonType: "date",
                     description: "更新时间"
                 }
@@ -48,4 +43,7 @@ db.createCollection("goods", {
 
 // 创建索引
 db.goods.createIndex({ "name": 1 });
-db.goods.createIndex({ "status": 1 }); 
+db.goods.createIndex({ "start_time": 1 });
+db.goods.createIndex({ "end_time": 1 });
+
+print("MongoDB 初始化完成！"); 

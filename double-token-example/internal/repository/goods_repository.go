@@ -5,6 +5,7 @@ import (
 	"double-token-example/internal/db"
 	"double-token-example/internal/model"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -26,8 +27,17 @@ func NewGoodsRepository() *GoodsRepository {
 
 // Create 创建商品
 func (r *GoodsRepository) Create(ctx context.Context, goods *model.Goods) error {
+	log.Printf("开始创建商品: %s", goods.Name)
+
+	// 插入商品数据
 	_, err := r.collection.InsertOne(ctx, goods)
-	return err
+	if err != nil {
+		log.Printf("创建商品失败: %v", err)
+		return fmt.Errorf("创建商品失败: %v", err)
+	}
+
+	log.Printf("商品创建成功: %s", goods.Name)
+	return nil
 }
 
 // GetList 获取商品列表
@@ -137,4 +147,90 @@ func (r *GoodsRepository) UpdateStock(ctx context.Context, id primitive.ObjectID
 		return errors.New("update failed, version mismatch")
 	}
 	return nil
+}
+
+// CreateSeckillGoodsCache 创建秒杀商品缓存
+func (r *GoodsRepository) CreateSeckillGoodsCache(ctx context.Context, goods *model.Goods) error {
+	log.Printf("开始创建秒杀商品缓存: %s", goods.Name)
+
+	seckillKey := fmt.Sprintf("seckill:%s", goods.ID)
+	stockKey := fmt.Sprintf("seckill:stock:%s", goods.ID)
+	soldKey := fmt.Sprintf("seckill:sold:%s", goods.ID)
+
+	// 使用 Pipeline 批量执行命令
+	pipe := db.GetRedisDB().Pipeline()
+
+	// 1. 存储秒杀商品基本信息
+	log.Printf("设置秒杀商品基本信息: %s", goods.Name)
+	pipe.HSet(ctx, seckillKey, map[string]interface{}{
+		"stock":      goods.Stock,
+		"start_time": goods.StartTime.Unix(),
+		"end_time":   goods.EndTime.Unix(),
+		"price":      goods.Price,
+		"status":     0, // 初始状态
+	})
+
+	// 2. 设置库存计数器
+	log.Printf("设置秒杀商品库存: %d", goods.Stock)
+	pipe.Set(ctx, stockKey, goods.Stock, 0)
+
+	// 3. 设置已售数量计数器
+	log.Printf("初始化已售数量计数器")
+	pipe.Set(ctx, soldKey, 0, 0)
+
+	// 4. 设置过期时间
+	expiration := goods.EndTime.Unix() - time.Now().Unix()
+	if expiration > 0 {
+		pipe.Expire(ctx, seckillKey, time.Duration(expiration)*time.Second)
+		pipe.Expire(ctx, stockKey, time.Duration(expiration)*time.Second)
+		pipe.Expire(ctx, soldKey, time.Duration(expiration)*time.Second)
+	}
+
+	// 执行 Pipeline
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		log.Printf("创建秒杀商品缓存失败: %v", err)
+		return fmt.Errorf("创建秒杀商品缓存失败: %v", err)
+	}
+
+	log.Printf("秒杀商品缓存创建成功: %s", goods.Name)
+	return nil
+}
+
+// DecreaseSeckillStock 扣减秒杀商品库存
+func (r *GoodsRepository) DecreaseSeckillStock(ctx context.Context, goodsID string, quantity int64) (bool, error) {
+	log.Printf("开始扣减商品库存: %s, 数量: %d", goodsID, quantity)
+
+	stockKey := fmt.Sprintf("seckill:stock:%s", goodsID)
+	soldKey := fmt.Sprintf("seckill:sold:%s", goodsID)
+
+	// 使用 Lua 脚本保证原子性
+	script := `
+		local stock = tonumber(redis.call('GET', KEYS[1]))
+		local sold = tonumber(redis.call('GET', KEYS[2]))
+		local quantity = tonumber(ARGV[1])
+		
+		if stock < quantity then
+			return 0
+		end
+		
+		redis.call('DECRBY', KEYS[1], quantity)
+		redis.call('INCRBY', KEYS[2], quantity)
+		return 1
+	`
+
+	result, err := db.GetRedisDB().Eval(ctx, script, []string{stockKey, soldKey}, quantity).Result()
+	if err != nil {
+		log.Printf("扣减库存失败: %v", err)
+		return false, fmt.Errorf("扣减库存失败: %v", err)
+	}
+
+	success := result.(int64) == 1
+	if success {
+		log.Printf("扣减库存成功: %s, 数量: %d", goodsID, quantity)
+	} else {
+		log.Printf("扣减库存失败: %s, 库存不足", goodsID)
+	}
+
+	return success, nil
 }

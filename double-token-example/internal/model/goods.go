@@ -14,6 +14,8 @@ type Goods struct {
 	Status      int8      `bson:"status" json:"status"`           // 1-上架，0-下架
 	CreatorID   int64     `bson:"creator_id" json:"creatorID"`    // 商品创建者ID
 	UpdaterID   int64     `bson:"updater_id" json:"updaterID"`    // 商品更新者ID
+	StartTime   time.Time `bson:"start_time" json:"startTime"`    // 商品上架时间
+	EndTime     time.Time `bson:"end_time" json:"endTime"`        // 商品下架时间
 	CreateTime  time.Time `bson:"create_time" json:"createTime"`  // 商品创建时间
 	UpdateTime  time.Time `bson:"update_time" json:"updateTime"`  // 商品更新时间
 }
@@ -24,6 +26,8 @@ type CreateGoodsRequest struct {
 	Description string  `json:"description" binding:"required"` // 商品描述，必填
 	Price       float64 `json:"price" binding:"required,gt=0"`  // 商品价格，必填且大于0
 	Stock       int64   `json:"stock" binding:"required,gte=0"` // 商品库存，必填且大于等于0
+	StartTime   string  `json:"startTime"`                      // 商品上架时间
+	EndTime     string  `json:"endTime"`                        // 商品下架时间
 	CreatorID   int64   `json:"-"`                              // 商品创建者ID，不参与JSON序列化
 }
 
@@ -34,6 +38,8 @@ type UpdateGoodsRequest struct {
 	Price       float64 `json:"price" binding:"gt=0"`       // 商品价格，需大于0
 	Stock       int64   `json:"stock" binding:"gte=0"`      // 商品库存，需大于等于0
 	Status      int8    `json:"status" binding:"oneof=0 1"` // 商品状态，只能为0或1
+	StartTime   string  `json:"startTime"`                  // 商品上架时间
+	EndTime     string  `json:"endTime"`                    // 商品下架时间
 	UpdaterID   int64   `json:"-"`                          // 商品更新者ID，不参与JSON序列化
 }
 
