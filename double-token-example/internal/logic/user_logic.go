@@ -21,9 +21,28 @@ func NewUserLogic() *UserLogic {
 // Register 用户注册
 func (l *UserLogic) Register(ctx context.Context, username, password, phone, email string) error {
 	// 检查用户名是否已存在
-	_, err := l.userRepo.GetByUsername(ctx, username)
-	if err == nil {
-		return errors.New("用户名已存在")
+	var (
+		err                            error
+		existByUsernameFromBloomFilter bool
+		existByUsernameFromRedis       bool
+	)
+	existByUsernameFromBloomFilter, err = l.userRepo.ExistByUsernameFromBloomFilter(ctx, username)
+	if err != nil {
+		return err
+	}
+	if existByUsernameFromBloomFilter {
+		existByUsernameFromRedis, err = l.userRepo.ExistByUsernameFromRedis(ctx, username)
+		if err != nil {
+			return err
+		}
+		if existByUsernameFromRedis {
+			return errors.New("redis : 用户名已存在")
+		}
+
+		_, err = l.userRepo.GetByUsername(ctx, username)
+		if err == nil {
+			return errors.New("mysql : 用户名已存在")
+		}
 	}
 
 	// 检查手机号是否已存在

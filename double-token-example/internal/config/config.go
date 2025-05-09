@@ -11,10 +11,16 @@ type Config struct {
 		Port string
 	}
 	Redis struct {
-		Host     string
-		Port     string
-		Password string
-		DB       int
+		Host       string
+		Port       string
+		Password   string
+		DB         int
+		UserExpiry int64
+		Bloom      struct {
+			Name          string
+			ErrorRate     float64
+			ExpectedItems int64
+		}
 	}
 	MySQL struct {
 		Host     string
@@ -59,6 +65,11 @@ func init() {
 	viper.SetDefault("redis.port", "6379")
 	viper.SetDefault("redis.password", "")
 	viper.SetDefault("redis.db", 0)
+	viper.SetDefault("redis.userExpiry", 86400)
+	viper.SetDefault("redis.bloom.name", "bloom")
+	viper.SetDefault("redis.bloom.errorRate", 0.001)
+	viper.SetDefault("redis.bloom.expectedItems", 10000)
+
 	viper.SetDefault("mysql.host", "127.0.0.1")
 	viper.SetDefault("mysql.port", "8806")
 	viper.SetDefault("mysql.user", "root")
