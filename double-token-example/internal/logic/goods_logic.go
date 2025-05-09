@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"double-token-example/internal/config"
 	"double-token-example/internal/kafka"
 	"double-token-example/internal/model"
 	"double-token-example/internal/repository"
@@ -16,13 +17,13 @@ import (
 
 type GoodsLogic struct {
 	goodsRepo *repository.GoodsRepository
-	kafka     *kafka.KafkaSever
+	producer  *kafka.Producer
 }
 
 func NewGoodsLogic() *GoodsLogic {
 	return &GoodsLogic{
 		goodsRepo: repository.NewGoodsRepository(),
-		kafka:     kafka.GetKafkaServer(),
+		producer:  kafka.GetProducer(),
 	}
 }
 
@@ -60,15 +61,14 @@ func (l *GoodsLogic) CreateGoods(ctx context.Context, req *model.CreateGoodsRequ
 		return err
 	}
 	msg := &sarama.ProducerMessage{
-		Topic: "goods_topic",
+		Topic: config.Cfg.Kafka.Topics.GoodsTopic,
 		Value: sarama.StringEncoder(marshal),
 	}
-	partition, offset, err := l.kafka.SyncProducer.SendMessage(msg)
+	err = l.producer.Send(msg)
 	if err != nil {
 		log.Fatalln(err)
 		return err
 	}
-	log.Printf("Message is stored in partition %d at offset %d\n", partition, offset)
 	err = l.goodsRepo.CreateSeckillGoodsCache(ctx, goods)
 	if err != nil {
 		log.Fatalln(err)

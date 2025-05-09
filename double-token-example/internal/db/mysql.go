@@ -10,8 +10,8 @@ import (
 
 var mysqlDB *gorm.DB
 
-// InitMySQL 初始化MySQL连接
-func InitMySQL() {
+// init 初始化MySQL连接
+func init() {
 	dsn := fmt.Sprintf("root:root@tcp(127.0.0.1:8806)/double_token_example?charset=utf8mb4&parseTime=True&loc=Local")
 
 	var err error

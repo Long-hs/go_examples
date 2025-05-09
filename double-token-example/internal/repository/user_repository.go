@@ -5,6 +5,7 @@ import (
 	"double-token-example/internal/db"
 	"double-token-example/internal/model"
 	"errors"
+	"sync"
 
 	"gorm.io/gorm"
 )
@@ -13,10 +14,18 @@ type UserRepository struct {
 	db *gorm.DB
 }
 
+var (
+	userRepo *UserRepository
+	userOnce sync.Once
+)
+
 func NewUserRepository() *UserRepository {
-	return &UserRepository{
-		db: db.GetMySQL(),
-	}
+	userOnce.Do(func() {
+		userRepo = &UserRepository{
+			db: db.GetMySQL(),
+		}
+	})
+	return userRepo
 }
 
 // Create 创建用户

@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"double-token-example/internal/config"
 	"double-token-example/internal/kafka"
 	"double-token-example/internal/model"
 	"double-token-example/internal/repository"
@@ -9,21 +10,20 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/IBM/sarama"
-	"log"
 	"time"
 )
 
 type OrderLogic struct {
-	orderRepo   *repository.OrderRepository
-	kafkaServer *kafka.KafkaSever
-	goodsRepo   *repository.GoodsRepository
+	producer  *kafka.Producer
+	orderRepo *repository.OrderRepository
+	goodsRepo *repository.GoodsRepository
 }
 
 func NewOrderLogic() *OrderLogic {
 	return &OrderLogic{
-		orderRepo:   repository.NewOrderRepository(),
-		kafkaServer: kafka.GetKafkaServer(),
-		goodsRepo:   repository.NewGoodsRepository(),
+		producer:  kafka.GetProducer(),
+		orderRepo: repository.NewOrderRepository(),
+		goodsRepo: repository.NewGoodsRepository(),
 	}
 }
 
@@ -53,15 +53,14 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *model.CreateOrderRequ
 		return err
 	}
 	msg := &sarama.ProducerMessage{
-		Topic: "order_topic",
+		Topic: config.Cfg.Kafka.Topics.OrderTopic,
 		Key:   nil,
 		Value: sarama.StringEncoder(marshal),
 	}
 
-	partition, offset, err := l.kafkaServer.SyncProducer.SendMessage(msg)
+	err = l.producer.Send(msg)
 	if err != nil {
 		return err
 	}
-	log.Printf("send message to kafka, partition: %d, offset: %d", partition, offset)
 	return nil
 }

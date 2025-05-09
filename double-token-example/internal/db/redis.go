@@ -7,7 +7,7 @@ import (
 
 var RedisDB *redis.Client
 
-func InitRedisDB() {
+func init() {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "127.0.0.1:6379",
 		Password: "",

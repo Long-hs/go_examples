@@ -9,8 +9,8 @@ import (
 
 var mongoDB *mongo.Client
 
-// InitMongoDB 初始化MongoDB连接
-func InitMongoDB() {
+// init 初始化MongoDB连接
+func init() {
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017/double_token_example")
 
 	var err error

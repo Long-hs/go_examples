@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,24 +20,28 @@ type GoodsRepository struct {
 	collection *mongo.Collection
 }
 
+var (
+	goodsRepo *GoodsRepository
+	goodsOnce sync.Once
+)
+
 func NewGoodsRepository() *GoodsRepository {
-	return &GoodsRepository{
-		collection: db.GetMongoDBCollection("goods"),
-	}
+	goodsOnce.Do(func() {
+		goodsRepo = &GoodsRepository{
+			collection: db.GetMongoDBCollection("goods"),
+		}
+	})
+	return goodsRepo
 }
 
 // Create 创建商品
 func (r *GoodsRepository) Create(ctx context.Context, goods *model.Goods) error {
-	log.Printf("开始创建商品: %s", goods.Name)
-
 	// 插入商品数据
 	_, err := r.collection.InsertOne(ctx, goods)
 	if err != nil {
 		log.Printf("创建商品失败: %v", err)
 		return fmt.Errorf("创建商品失败: %v", err)
 	}
-
-	log.Printf("商品创建成功: %s", goods.Name)
 	return nil
 }
 
@@ -151,8 +156,6 @@ func (r *GoodsRepository) UpdateStock(ctx context.Context, id primitive.ObjectID
 
 // CreateSeckillGoodsCache 创建秒杀商品缓存
 func (r *GoodsRepository) CreateSeckillGoodsCache(ctx context.Context, goods *model.Goods) error {
-	log.Printf("开始创建秒杀商品缓存: %s", goods.Name)
-
 	seckillKey := fmt.Sprintf("seckill:%s", goods.ID)
 	stockKey := fmt.Sprintf("seckill:stock:%s", goods.ID)
 	soldKey := fmt.Sprintf("seckill:sold:%s", goods.ID)
@@ -161,7 +164,6 @@ func (r *GoodsRepository) CreateSeckillGoodsCache(ctx context.Context, goods *mo
 	pipe := db.GetRedisDB().Pipeline()
 
 	// 1. 存储秒杀商品基本信息
-	log.Printf("设置秒杀商品基本信息: %s", goods.Name)
 	pipe.HSet(ctx, seckillKey, map[string]interface{}{
 		"stock":      goods.Stock,
 		"start_time": goods.StartTime.Unix(),
@@ -171,36 +173,30 @@ func (r *GoodsRepository) CreateSeckillGoodsCache(ctx context.Context, goods *mo
 	})
 
 	// 2. 设置库存计数器
-	log.Printf("设置秒杀商品库存: %d", goods.Stock)
 	pipe.Set(ctx, stockKey, goods.Stock, 0)
 
 	// 3. 设置已售数量计数器
-	log.Printf("初始化已售数量计数器")
 	pipe.Set(ctx, soldKey, 0, 0)
 
 	// 4. 设置过期时间
 	expiration := goods.EndTime.Unix() - time.Now().Unix()
-	if expiration > 0 {
-		pipe.Expire(ctx, seckillKey, time.Duration(expiration)*time.Second)
-		pipe.Expire(ctx, stockKey, time.Duration(expiration)*time.Second)
-		pipe.Expire(ctx, soldKey, time.Duration(expiration)*time.Second)
+	if expiration <= 0 {
+		expiration = 60 * 60 * 24
 	}
-
+	pipe.Expire(ctx, seckillKey, time.Duration(expiration)*time.Second)
+	pipe.Expire(ctx, stockKey, time.Duration(expiration)*time.Second)
+	pipe.Expire(ctx, soldKey, time.Duration(expiration)*time.Second)
 	// 执行 Pipeline
 	_, err := pipe.Exec(ctx)
 	if err != nil {
 		log.Printf("创建秒杀商品缓存失败: %v", err)
 		return fmt.Errorf("创建秒杀商品缓存失败: %v", err)
 	}
-
-	log.Printf("秒杀商品缓存创建成功: %s", goods.Name)
 	return nil
 }
 
 // DecreaseSeckillStock 扣减秒杀商品库存
 func (r *GoodsRepository) DecreaseSeckillStock(ctx context.Context, goodsID string, quantity int64) (bool, error) {
-	log.Printf("开始扣减商品库存: %s, 数量: %d", goodsID, quantity)
-
 	stockKey := fmt.Sprintf("seckill:stock:%s", goodsID)
 	soldKey := fmt.Sprintf("seckill:sold:%s", goodsID)
 

@@ -5,16 +5,25 @@ import (
 	"double-token-example/internal/db"
 	"double-token-example/internal/model"
 	"gorm.io/gorm"
+	"sync"
 )
 
 type OrderRepository struct {
 	db *gorm.DB
 }
 
+var (
+	orderRepo *OrderRepository
+	orderOnce sync.Once
+)
+
 func NewOrderRepository() *OrderRepository {
-	return &OrderRepository{
-		db: db.GetMySQL(),
-	}
+	orderOnce.Do(func() {
+		orderRepo = &OrderRepository{
+			db: db.GetMySQL(),
+		}
+	})
+	return orderRepo
 }
 
 // Create 创建订单
