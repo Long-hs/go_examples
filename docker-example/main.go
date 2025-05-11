@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"log"
 	"os"
 )
@@ -13,8 +16,22 @@ type Conf struct {
 	} `yaml:"system"`
 }
 
+func initDB() {
+	dsn := fmt.Sprintf("root:root@tcp(172.20.0.2:3306)/double_token_example?charset=utf8mb4&parseTime=True&loc=Local")
+
+	var err error
+	_, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to MySQL: %v", err)
+	}
+
+	log.Println("MySQL connected successfully")
+}
+
 func main() {
 	r := gin.Default()
+
+	initDB()
 
 	byteData, err := os.ReadFile("settings.yaml")
 	if err != nil {
