@@ -42,3 +42,14 @@ CREATE TABLE `order` (
     FOREIGN KEY (creator_id) REFERENCES user (id)
 ) COMMENT '订单表';
 
+CREATE TABLE `refresh_tokens` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `jti` VARCHAR(36) NOT NULL COMMENT 'Token 唯一标识',
+  `expires_at` DATETIME NOT NULL COMMENT '过期时间',
+  `created_at` DATETIME NOT NULL COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_jti` (`jti`),
+  KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RefreshToken表';

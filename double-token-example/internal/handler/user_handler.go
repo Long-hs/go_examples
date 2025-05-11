@@ -4,7 +4,6 @@ import (
 	"double-token-example/internal/logic"
 	"double-token-example/internal/model"
 	"double-token-example/pkg/response"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -56,15 +55,28 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.userLogic.Login(c.Request.Context(), req.Username, req.Password)
+	accessToken, refreshToken, err := h.userLogic.Login(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
 	response.Success(c, gin.H{
-		"token": token,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 	})
+}
+
+func (h *UserHandler) Logout(c *gin.Context) {
+	jti := c.GetString("jti")
+	userID := c.GetInt64("user_id")
+	expiresAt := c.GetTime("exp")
+	err := h.userLogic.Logout(c.Request.Context(), jti, expiresAt, userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	response.Success(c, nil)
 }
 
 // GetUserInfo 获取用户信息
@@ -88,5 +100,21 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 		"phone":    user.Phone,
 		"email":    user.Email,
 		"status":   user.Status,
+	})
+}
+
+// RefreshToken 刷新token
+func (h *UserHandler) RefreshToken(c *gin.Context) {
+	userID := c.GetInt64("user_id")
+	username := c.GetString("username")
+	accessToken, refreshToken, err := h.userLogic.RefreshToken(c.Request.Context(), userID, username)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
 	})
 }

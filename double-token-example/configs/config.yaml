@@ -1,6 +1,17 @@
 server:
   port: "8080"
 
+redis:
+  host: "127.0.0.1"
+  port: "6379"
+  password: ""
+  db: 0
+  userExpiry: 86400
+  bloom:
+    name: "bloom"
+    errorRate: 0.001
+    expectedItems: 10000
+
 mysql:
   host: "127.0.0.1"
   port: "3306"
@@ -14,4 +25,17 @@ mongodb:
 
 jwt:
   secret: "your-secret-key"
-  expire_time: 86400  # 24小时 
+  accessTokenExpireTime: 10 #1800  # 30分钟
+  refreshTokenExpireTime: 604800  # 7天
+  accessTokenType: "access"
+  refreshTokenType: "refresh"
+
+kafka:
+  brokers:
+    - "127.0.0.1:9092"
+  groups:
+    goodsGroup: "goods_group"
+    orderGroup: "order_group"
+  topics:
+    goodsTopic: "goods_topic"
+    orderTopic: "order_topic"

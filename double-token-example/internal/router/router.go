@@ -26,8 +26,15 @@ func RegisterRoutes(engine *gin.Engine) {
 
 	// 需要认证的路由组
 	private := engine.Group("/api")
-	private.Use(middleware.JWTAuth())
+	private.Use(middleware.AccessAuth())
 	{
+		// 用户相关
+		user := private.Group("/user")
+		{
+			user.GET("/info", userHandler.GetUserInfo)
+			user.POST("/logout", userHandler.Logout)
+		}
+
 		// 商品相关
 		goods := private.Group("/goods")
 		{
@@ -45,5 +52,12 @@ func RegisterRoutes(engine *gin.Engine) {
 			order.GET("/list", orderHandler.GetOrderList)
 			order.GET("/:id", orderHandler.GetOrderDetail)
 		}
+	}
+
+	// 刷新token接口
+	refresh := engine.Group("/api")
+	refresh.Use(middleware.RefreshAuth())
+	{
+		refresh.POST("/refresh", userHandler.RefreshToken)
 	}
 }

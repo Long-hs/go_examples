@@ -2,19 +2,23 @@ package logic
 
 import (
 	"context"
+	"double-token-example/internal/config"
 	"double-token-example/internal/model"
 	"double-token-example/internal/repository"
 	"double-token-example/pkg/utils"
 	"errors"
+	"time"
 )
 
 type UserLogic struct {
-	userRepo *repository.UserRepository
+	userRepo         *repository.UserRepository
+	refreshTokenRepo *repository.RefreshTokenRepository
 }
 
 func NewUserLogic() *UserLogic {
 	return &UserLogic{
-		userRepo: repository.NewUserRepository(),
+		userRepo:         repository.NewUserRepository(),
+		refreshTokenRepo: repository.NewRefreshTokenRepository(),
 	}
 }
 
@@ -85,28 +89,103 @@ func (l *UserLogic) Register(ctx context.Context, username, password, phone, ema
 }
 
 // Login 用户登录
-func (l *UserLogic) Login(ctx context.Context, username, password string) (string, error) {
+func (l *UserLogic) Login(ctx context.Context, username, password string) (string, string, error) {
 	// 获取用户信息
 	user, err := l.userRepo.GetByUsername(ctx, username)
 	if err != nil {
-		return "", errors.New("用户名或密码错误")
+		return "", "", errors.New("用户名或密码错误")
 	}
 
 	// 验证密码
 	if !utils.CheckPassword(password+user.Salt, user.Password) {
-		return "", errors.New("用户名或密码错误")
+		return "", "", errors.New("用户名或密码错误")
 	}
 
 	// 生成token
-	token, err := utils.GenerateToken(user.ID, user.Username)
+	accessToken, err := utils.GenerateToken(
+		utils.GenerateUUID(),
+		user.ID,
+		user.Username,
+		config.Cfg.JWT.AccessTokenExpireTime,
+		config.Cfg.JWT.AccessTokenType,
+	)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
+	refreshId := utils.GenerateUUID()
+	refreshToken, err := utils.GenerateToken(
+		refreshId,
+		user.ID,
+		user.Username,
+		config.Cfg.JWT.RefreshTokenExpireTime,
+		config.Cfg.JWT.RefreshTokenType,
+	)
+	if err != nil {
+		return "", "", err
+	}
+	token := &model.RefreshToken{
+		UserID:    user.ID,
+		JTI:       refreshId,
+		ExpiresAt: time.Now().Add(time.Duration(config.Cfg.JWT.RefreshTokenExpireTime) * time.Second),
+		CreatedAt: time.Time{},
+		UpdatedAt: time.Time{},
+	}
+	// 持久化refreshToken
+	err = l.refreshTokenRepo.Create(ctx, token)
+	if err != nil {
+		return "", "", err
+	}
+	return accessToken, refreshToken, nil
+}
 
-	return token, nil
+// RefreshToken 刷新token
+func (l *UserLogic) RefreshToken(ctx context.Context, userID int64, username string) (string, string, error) {
+
+	// 生成新的token
+	accessToken, err := utils.GenerateToken(
+		utils.GenerateUUID(),
+		userID,
+		username,
+		config.Cfg.JWT.AccessTokenExpireTime,
+		config.Cfg.JWT.AccessTokenType,
+	)
+	if err != nil {
+		return "", "", err
+	}
+	refreshId := utils.GenerateUUID()
+	refreshToken, err := utils.GenerateToken(
+		refreshId,
+		userID,
+		username,
+		config.Cfg.JWT.RefreshTokenExpireTime,
+		config.Cfg.JWT.RefreshTokenType,
+	)
+	if err != nil {
+		return "", "", err
+	}
+	token := &model.RefreshToken{
+		UserID:    userID,
+		JTI:       refreshId,
+		ExpiresAt: time.Now().Add(time.Duration(config.Cfg.JWT.RefreshTokenExpireTime) * time.Second),
+		CreatedAt: time.Time{},
+		UpdatedAt: time.Time{},
+	}
+	err = l.refreshTokenRepo.Refresh(ctx, token)
+	if err != nil {
+		return "", "", err
+	}
+	return accessToken, refreshToken, nil
 }
 
 // GetUserInfo 获取用户信息
 func (l *UserLogic) GetUserInfo(ctx context.Context, userID int64) (*model.User, error) {
 	return l.userRepo.GetByID(ctx, userID)
+}
+
+func (l *UserLogic) Logout(ctx context.Context, jti string, expiresAt time.Time, userID int64) error {
+	err := l.refreshTokenRepo.DeleteByUserID(ctx, jti, expiresAt, userID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
