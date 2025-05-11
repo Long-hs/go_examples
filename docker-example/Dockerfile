@@ -14,5 +14,11 @@ RUN go build -o main
 
 FROM scratch
 WORKDIR /app
+# 设置settings后无需指定-v参数（但settings更新时需重新打包）
+COPY settings.yaml .
+
 COPY --from=builder /build/main /app
+
+EXPOSE 5000
+
 CMD ["./main"]
