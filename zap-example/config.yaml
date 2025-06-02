@@ -1,0 +1,20 @@
+server:
+  address: :8080
+
+log:
+  level: info
+  dir: logs                     # 日志文件目录
+  max_size: 100                 # 单个文件最大大小 (MB)
+  max_backups: 100               # 保留旧文件的最大个数
+  max_age: 35                   # 保留旧文件的最大天数
+  compress: true                # 是否压缩旧文件
+  development: true            # 是否为开发环境
+  disable_caller: false         # 是否禁用调用者信息
+  use_local_time: true          # 使用本地时间而非UTC
+  use_utc_time: false           # 是否使用UTC时间戳
+  split_by_level: true          # 是否按级别分割日志
+  level_files:                  # 各级别日志文件名模板
+    debug: "{date}_debug.log"
+    info: "{date}_info.log"
+    warn: "{date}_warn.log"
+    error: "{date}_error.log"
